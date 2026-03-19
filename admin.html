@@ -98,9 +98,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .review-item { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
 .review-item:last-child { margin-bottom: 0; }
 .review-top { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; flex-wrap: wrap; }
+.review-top-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
 .review-evaluator { font-size: 13px; font-weight: 600; color: var(--text); }
 .review-relation { font-size: 11px; color: var(--text-sub); background: var(--bg); padding: 2px 8px; border-radius: 20px; }
-.review-time { font-size: 11px; color: var(--text-sub); margin-left: auto; }
+.review-time { font-size: 11px; color: var(--text-sub); }
 .review-comment { background: var(--bg); border-radius: 6px; padding: 8px 10px; font-size: 12px; color: var(--text-sub); line-height: 1.6; margin-top: 8px; }
 .comment-q-label { font-size: 10px; color: var(--text-sub); margin-bottom: 2px; font-weight: 500; }
 
@@ -360,8 +361,10 @@ function render() {
               <div class="review-top">
                 <span class="review-evaluator">${r.evaluator}</span>
                 <span class="review-relation">${r.relation||'—'}</span>
-                <span class="review-time">${formatDate(r.submittedAt)}</span>
-                <button class="btn-delete-review" onclick="deleteReview('${name.replace(/[\s　]/g,'')}',${idx})" title="この回答を削除">×</button>
+                <div class="review-top-right">
+                  <span class="review-time">${formatDate(r.submittedAt)}</span>
+                  <button class="btn-delete-review" onclick="deleteReview('${name.replace(/[\s　]/g,'')}',${idx})" title="この回答を削除">×</button>
+                </div>
               </div>
               ${questions.map(q=>`
                 <div class="score-row">
