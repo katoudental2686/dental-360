@@ -188,6 +188,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 </div>
 
 <script>
+// ============================================================
+// ★ GASのウェブアプリURLをここに設定してください
+// ============================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzihK-AOwL5ToOU5ZY6YvfmtkgX2Jd8obUITAyoO5aRKM9Ovrpb-DhrR_xb2cMksab8Mg/exec';
 
 const questions = [
@@ -209,6 +212,7 @@ function parseDate(str) {
   const d = new Date(s);
   return isNaN(d) ? new Date(0) : d;
 }
+
 function formatDate(str) {
   if (!str) return '';
   const d = parseDate(str);
@@ -225,61 +229,106 @@ async function loadData() {
   btn.classList.add('loading');
   btn.textContent = '読み込み中...';
   document.getElementById('person-list').innerHTML = '<div class="loading-state"><div class="spinner"></div><p>データを取得しています...</p></div>';
+
   try {
     const res = await fetch(GAS_URL + '?action=getReviews');
     const json = await res.json();
-    if (json.status === 'ok') { allReviews = json.data; buildYearOptions(); render(); }
-    else { showError('データの取得に失敗しました: ' + json.message); }
-  } catch(e) { showError('GASへの接続に失敗しました。GAS_URLを確認してください。'); }
+    if (json.status === 'ok') {
+      allReviews = json.data;
+      buildYearOptions();
+      render();
+    } else {
+      showError('データの取得に失敗しました: ' + json.message);
+    }
+  } catch(e) {
+    showError('GASへの接続に失敗しました。GAS_URLを確認してください。');
+  }
   btn.classList.remove('loading');
   btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10.5 6A4.5 4.5 0 1 1 6 1.5c1.2 0 2.3.47 3.1 1.24L11 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 1v3H8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>データを更新';
 }
-function showError(msg) { document.getElementById('person-list').innerHTML = '<div class="empty-state"><p>⚠️ ' + msg + '</p></div>'; }
+
+function showError(msg) {
+  document.getElementById('person-list').innerHTML = '<div class="empty-state"><p>⚠️ ' + msg + '</p></div>';
+}
 
 function buildYearOptions() {
-  const years = [...new Set(allReviews.map(r => { const d = parseDate(r.submittedAt); return d.getFullYear() ? String(d.getFullYear()) : null; }).filter(Boolean))].sort();
+  const years = [...new Set(allReviews.map(r => {
+    const d = parseDate(r.submittedAt);
+    return d.getFullYear() ? String(d.getFullYear()) : null;
+  }).filter(Boolean))].sort();
   const sel = document.getElementById('f-year');
   const cur = sel.value;
   sel.innerHTML = '<option value="all">年</option>';
   years.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y+'年'; sel.appendChild(o); });
   if (cur !== 'all') sel.value = cur;
 }
-function switchTab(el, clinic) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); currentClinic = clinic; render(); }
-function resetFilters() { document.getElementById('f-year').value='all'; document.getElementById('f-month').value='all'; document.getElementById('f-job').value='all'; document.getElementById('f-allowance').checked=false; render(); }
+
+function switchTab(el, clinic) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active'); currentClinic = clinic; render();
+}
+function resetFilters() {
+  document.getElementById('f-year').value = 'all';
+  document.getElementById('f-month').value = 'all';
+  document.getElementById('f-job').value = 'all';
+  document.getElementById('f-allowance').checked = false;
+  render();
+}
 
 function render() {
   const yr = document.getElementById('f-year').value;
   const mo = document.getElementById('f-month').value;
   const job = document.getElementById('f-job').value;
   const allowanceOnly = document.getElementById('f-allowance').checked;
+
   let reviews = currentClinic === 'all' ? allReviews : allReviews.filter(r => r.clinic === currentClinic);
   if (yr !== 'all') reviews = reviews.filter(r => { const d = parseDate(r.submittedAt); return String(d.getFullYear()) === yr; });
   if (mo !== 'all') reviews = reviews.filter(r => { const d = parseDate(r.submittedAt); return d.getMonth()+1 === +mo; });
+
   const personMap = {};
-  reviews.forEach(r => { if (!personMap[r.evaluatee]) personMap[r.evaluatee] = { clinic: r.clinic, job: r.evaluateeJob || getJob(r.evaluatee) || '—', reviews: [] }; personMap[r.evaluatee].reviews.push(r); });
+  reviews.forEach(r => {
+    if (!personMap[r.evaluatee]) personMap[r.evaluatee] = { clinic: r.clinic, job: r.evaluateeJob || getJob(r.evaluatee) || '—', reviews: [] };
+    personMap[r.evaluatee].reviews.push(r);
+  });
+
   let persons = Object.keys(personMap);
   if (job !== 'all') persons = persons.filter(n => personMap[n].job === job);
   if (allowanceOnly) persons = persons.filter(n => calcAvg(personMap[n].reviews) >= 4);
+
   const allS = reviews.flatMap(r => questions.map(q => Number(r.answers[q.key])||0));
   document.getElementById('stat-total').textContent = reviews.length;
   document.getElementById('stat-persons').textContent = persons.length;
   document.getElementById('stat-avg').textContent = allS.length ? (allS.reduce((a,b)=>a+b,0)/allS.length).toFixed(1) : '—';
   document.getElementById('result-count').innerHTML = '<strong>' + persons.length + '名</strong>を表示中';
+
   const banner = document.getElementById('allowance-banner');
   if (allowanceOnly) { banner.className = 'allowance-banner show'; banner.textContent = '360度手当対象者：' + persons.length + '名（平均スコア4.0以上）'; }
   else banner.className = 'allowance-banner';
+
   persons.sort((a,b) => calcAvg(personMap[b].reviews) - calcAvg(personMap[a].reviews));
+
   const list = document.getElementById('person-list');
   list.innerHTML = '';
-  if (persons.length === 0) { list.innerHTML = allReviews.length === 0 ? '<div class="empty-state"><p>「データを更新」ボタンを押してデータを読み込んでください。</p></div>' : '<div class="empty-state"><p>条件に一致するデータがありません。<br>フィルターを変更してみてください。</p></div>'; return; }
+
+  if (persons.length === 0) {
+    list.innerHTML = allReviews.length === 0
+      ? '<div class="empty-state"><p>「データを更新」ボタンを押してデータを読み込んでください。</p></div>'
+      : '<div class="empty-state"><p>条件に一致するデータがありません。<br>フィルターを変更してみてください。</p></div>';
+    return;
+  }
+
   persons.forEach(name => {
     const data = personMap[name];
-    const avgScores = questions.map(q => { const v = data.reviews.map(r => Number(r.answers[q.key])||0); return v.reduce((a,b)=>a+b,0)/v.length; });
+    const avgScores = questions.map(q => {
+      const v = data.reviews.map(r => Number(r.answers[q.key])||0);
+      return v.reduce((a,b)=>a+b,0)/v.length;
+    });
     const overall = (avgScores.reduce((a,b)=>a+b,0)/avgScores.length).toFixed(1);
     const n = parseFloat(overall);
     const bClass = n>=4?'badge-green':n>=3?'badge-amber':'badge-red';
     const bText = n>=4?'良好':n>=3?'普通':'要改善';
     const initials = name.replace(/[\s　]/g,'').slice(-2);
+
     const card = document.createElement('div'); card.className = 'person-card';
     card.innerHTML = `
       <div class="person-header" onclick="toggle(this)">
@@ -297,12 +346,17 @@ function render() {
       <div class="person-body">
         <div class="avg-section">
           <div class="section-title">項目別平均スコア</div>
-          ${questions.map((q,i)=>`<div class="score-row"><span class="score-label">${q.short}</span><div class="bar-bg"><div class="bar-fill" style="width:${avgScores[i]/5*100}%"></div></div><span class="score-val">${avgScores[i].toFixed(1)}</span></div>`).join('')}
+          ${questions.map((q,i)=>`
+            <div class="score-row">
+              <span class="score-label">${q.short}</span>
+              <div class="bar-bg"><div class="bar-fill" style="width:${avgScores[i]/5*100}%"></div></div>
+              <span class="score-val">${avgScores[i].toFixed(1)}</span>
+            </div>`).join('')}
         </div>
         <div class="reviews-section">
           <div class="section-title">個別の回答（${data.reviews.length}件）</div>
           ${data.reviews.map((r,idx)=>`
-            <div class="review-item">
+            <div class="review-item" id="review-${name.replace(/\s/g,'')}-${idx}">
               <div class="review-top">
                 <span class="review-evaluator">${r.evaluator}</span>
                 <span class="review-relation">${r.relation||'—'}</span>
@@ -311,8 +365,17 @@ function render() {
                   <button class="btn-delete-review" onclick="deleteReview('${name.replace(/[\s　]/g,'')}',${idx})" title="この回答を削除">×</button>
                 </div>
               </div>
-              ${questions.map(q=>`<div class="score-row"><span class="score-label" style="font-size:12px;width:150px;">${q.short}</span><div class="bar-bg"><div class="bar-fill" style="width:${(Number(r.answers[q.key])||0)/5*100}%"></div></div><span class="score-val">${r.answers[q.key]||'—'}</span></div>`).join('')}
-              ${questions.filter(q=>r.comments&&r.comments[q.key]).map(q=>`<div class="review-comment"><div class="comment-q-label">${q.short}</div>${r.comments[q.key]}</div>`).join('')}
+              ${questions.map(q=>`
+                <div class="score-row">
+                  <span class="score-label" style="font-size:12px;width:150px;">${q.short}</span>
+                  <div class="bar-bg"><div class="bar-fill" style="width:${(Number(r.answers[q.key])||0)/5*100}%"></div></div>
+                  <span class="score-val">${r.answers[q.key]||'—'}</span>
+                </div>`).join('')}
+              ${questions.filter(q=>r.comments&&r.comments[q.key]).map(q=>`
+                <div class="review-comment">
+                  <div class="comment-q-label">${q.short}</div>
+                  ${r.comments[q.key]}
+                </div>`).join('')}
             </div>`).join('')}
         </div>
       </div>`;
@@ -320,17 +383,37 @@ function render() {
   });
 }
 
-function toggle(h) { const b = h.nextElementSibling; const c = h.querySelector('.chevron'); b.classList.toggle('open'); c.classList.toggle('open'); }
-
-function deleteReview(nameKey, idx) {
-  if (!confirm('この回答を削除しますか？')) return;
-  const target = allReviews.filter(r => r.evaluatee.replace(/[\s　]/g,'') === nameKey)[idx];
-  if (!target) return;
-  const pos = allReviews.indexOf(target);
-  if (pos !== -1) allReviews.splice(pos, 1);
-  render();
+function toggle(h) {
+  const b = h.nextElementSibling; const c = h.querySelector('.chevron');
+  b.classList.toggle('open'); c.classList.toggle('open');
 }
 
+function deleteReview(nameKey, idx) {
+  const existing = document.getElementById('delete-dialog');
+  if (existing) existing.remove();
+  const dialog = document.createElement('div');
+  dialog.id = 'delete-dialog';
+  dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  dialog.innerHTML = `<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:300px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);text-align:center;">
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;">回答を削除しますか？</div>
+    <div style="font-size:13px;color:#666;margin-bottom:1.25rem;">この操作は取り消せません。</div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button onclick="document.getElementById('delete-dialog').remove()" style="padding:8px 20px;border-radius:8px;border:1px solid #e2e2e2;background:#f5f5f3;font-size:14px;cursor:pointer;">キャンセル</button>
+      <button id="delete-confirm-btn" style="padding:8px 20px;border-radius:8px;border:none;background:#E24B4A;color:white;font-size:14px;cursor:pointer;font-weight:500;">削除する</button>
+    </div>
+  </div>`;
+  document.body.appendChild(dialog);
+  document.getElementById('delete-confirm-btn').onclick = () => {
+    dialog.remove();
+    const target = allReviews.filter(r => r.evaluatee.replace(/[\s　]/g,'') === nameKey)[idx];
+    if (!target) return;
+    const pos = allReviews.indexOf(target);
+    if (pos !== -1) allReviews.splice(pos, 1);
+    render();
+  };
+}
+
+// 初期ロード
 loadData();
 </script>
 </body>
