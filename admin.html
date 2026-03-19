@@ -105,7 +105,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .comment-q-label { font-size: 10px; color: var(--text-sub); margin-bottom: 2px; font-weight: 500; }
 
 /* ローディング・空 */
-.empty-state { text-align: center; padding: 4rem 1rem; }
+.btn-delete-review { margin-left: auto; flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ddd; background: transparent; color: var(--text-sub); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.15s; padding: 0; }
+.btn-delete-review:hover { background: #FCEBEB; border-color: #E24B4A; color: #E24B4A; }
 .empty-state p { font-size: 14px; color: var(--text-sub); line-height: 1.8; }
 .loading-state { text-align: center; padding: 4rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -206,7 +207,16 @@ function parseDate(str) {
   if (!str) return new Date(0);
   const s = String(str).trim();
   const m = s.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(0);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(s);
+  return isNaN(d) ? new Date(0) : d;
+}
+
+function formatDate(str) {
+  if (!str) return '';
+  const d = parseDate(str);
+  if (!d || d.getTime() === 0) return String(str);
+  return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
 }
 function calcAvg(reviews) {
   const s = reviews.flatMap(r => questions.map(q => Number(r.answers[q.key])||0));
@@ -241,7 +251,10 @@ function showError(msg) {
 }
 
 function buildYearOptions() {
-  const years = [...new Set(allReviews.map(r => String(r.submittedAt).split('/')[0]).filter(Boolean))].sort();
+  const years = [...new Set(allReviews.map(r => {
+    const d = parseDate(r.submittedAt);
+    return d.getFullYear() ? String(d.getFullYear()) : null;
+  }).filter(Boolean))].sort();
   const sel = document.getElementById('f-year');
   const cur = sel.value;
   sel.innerHTML = '<option value="all">年</option>';
@@ -268,7 +281,7 @@ function render() {
   const allowanceOnly = document.getElementById('f-allowance').checked;
 
   let reviews = currentClinic === 'all' ? allReviews : allReviews.filter(r => r.clinic === currentClinic);
-  if (yr !== 'all') reviews = reviews.filter(r => String(r.submittedAt).startsWith(yr+'/'));
+  if (yr !== 'all') reviews = reviews.filter(r => { const d = parseDate(r.submittedAt); return String(d.getFullYear()) === yr; });
   if (mo !== 'all') reviews = reviews.filter(r => { const d = parseDate(r.submittedAt); return d.getMonth()+1 === +mo; });
 
   const personMap = {};
@@ -342,12 +355,13 @@ function render() {
         </div>
         <div class="reviews-section">
           <div class="section-title">個別の回答（${data.reviews.length}件）</div>
-          ${data.reviews.map(r=>`
-            <div class="review-item">
+          ${data.reviews.map((r,idx)=>`
+            <div class="review-item" id="review-${name.replace(/\s/g,'')}-${idx}">
               <div class="review-top">
                 <span class="review-evaluator">${r.evaluator}</span>
                 <span class="review-relation">${r.relation||'—'}</span>
-                <span class="review-time">${r.submittedAt}</span>
+                <span class="review-time">${formatDate(r.submittedAt)}</span>
+                <button class="btn-delete-review" onclick="deleteReview('${name.replace(/[\s　]/g,'')}',${idx})" title="この回答を削除">×</button>
               </div>
               ${questions.map(q=>`
                 <div class="score-row">
@@ -370,6 +384,16 @@ function render() {
 function toggle(h) {
   const b = h.nextElementSibling; const c = h.querySelector('.chevron');
   b.classList.toggle('open'); c.classList.toggle('open');
+}
+
+function deleteReview(nameKey, idx) {
+  if (!confirm('この回答を削除しますか？')) return;
+  // allReviews から対象を特定して削除
+  const target = allReviews.filter(r => r.evaluatee.replace(/[\s　]/g,'') === nameKey)[idx];
+  if (!target) return;
+  const pos = allReviews.indexOf(target);
+  if (pos !== -1) allReviews.splice(pos, 1);
+  render();
 }
 
 // 初期ロード
