@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360度評価フォーム</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #1D9E75; --green-dark: #0F6E56; --green-bg: #E1F5EE; --green-text: #085041;
+  --border: #e2e2e2; --text: #1a1a1a; --text-sub: #666;
+  --bg: #f5f5f3; --white: #fff; --red: #A32D2D;
+  --radius: 14px; --radius-sm: 9px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.app { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ヘッダー */
+.logo { display: flex; align-items: center; gap: 8px; margin-bottom: 2rem; }
+.logo-mark { width: 32px; height: 32px; background: var(--green); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.logo-mark svg { width: 18px; height: 18px; }
+.logo-text { font-size: 14px; font-weight: 600; color: var(--text); }
+.header h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+.header p { font-size: 14px; color: var(--text-sub); line-height: 1.7; margin-bottom: 1.75rem; }
+
+/* プログレス */
+.progress-wrap { margin-bottom: 1.75rem; }
+.progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.progress-label { font-size: 12px; color: var(--text-sub); font-weight: 500; }
+.progress-pct { font-size: 12px; color: var(--green); font-weight: 600; }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; }
+.progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.4s ease; }
+
+/* カード */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+
+/* フィールド */
+.field { margin-bottom: 1.25rem; }
+.field:last-child { margin-bottom: 0; }
+.field-label { font-size: 13px; color: var(--text-sub); font-weight: 500; display: block; margin-bottom: 7px; }
+select {
+  width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; font-family: inherit; color: var(--text); background: var(--white);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  transition: border-color 0.15s; cursor: pointer;
+}
+select:focus { outline: none; border-color: var(--green); }
+select:disabled { opacity: 0.4; cursor: not-allowed; }
+.error-msg { font-size: 12px; color: var(--red); margin-top: 5px; display: none; }
+
+/* 関係チップ */
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.chip {
+  padding: 7px 14px; border-radius: 20px; font-size: 13px;
+  border: 1px solid var(--border); cursor: pointer; color: var(--text-sub);
+  background: var(--white); transition: all 0.15s; user-select: none;
+}
+.chip:hover { border-color: var(--green); color: var(--green-text); }
+.chip.active { background: var(--green-bg); border-color: var(--green-dark); color: var(--green-text); font-weight: 500; }
+
+/* 質問テキスト */
+.q-text { font-size: 16px; font-weight: 600; line-height: 1.65; margin-bottom: 1.25rem; color: var(--text); }
+
+/* ラジオ */
+.radio-group { display: flex; flex-direction: column; gap: 8px; }
+.radio-option {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.15s;
+}
+.radio-option:hover { background: #fafafa; border-color: #bbb; }
+.radio-option.selected { background: var(--green-bg); border-color: var(--green-dark); }
+.radio-option input { display: none; }
+.radio-dot {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ccc;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.radio-option.selected .radio-dot { border-color: var(--green-dark); background: var(--green); }
+.radio-dot::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: white; display: none; }
+.radio-option.selected .radio-dot::after { display: block; }
+.radio-label { font-size: 14px; color: var(--text); flex: 1; }
+.radio-score { font-size: 12px; color: var(--text-sub); background: #f0f0f0; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+.radio-option.selected .radio-score { background: #c8eadf; color: var(--green-text); }
+
+/* コメント */
+.comment-title { font-size: 13px; font-weight: 500; color: var(--text-sub); margin-bottom: 8px; }
+textarea {
+  width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: inherit; color: var(--text); background: var(--white);
+  resize: vertical; min-height: 88px; transition: border-color 0.15s; line-height: 1.6;
+}
+textarea:focus { outline: none; border-color: var(--green); }
+
+/* ナビゲーション */
+.nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; gap: 12px; }
+.btn {
+  padding: 12px 24px; border-radius: var(--radius-sm); font-size: 15px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border); background: var(--white);
+  color: var(--text); font-family: inherit; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { background: #f0f0ee; }
+.btn-primary { background: var(--green); border-color: var(--green-dark); color: white; }
+.btn-primary:hover { background: var(--green-dark); }
+.btn.is-disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+/* 完了 */
+.done-wrap { text-align: center; padding: 4rem 1rem; }
+.done-icon { width: 60px; height: 60px; border-radius: 50%; background: var(--green-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.done-wrap h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.done-wrap p { font-size: 15px; color: var(--text-sub); line-height: 1.8; }
+
+/* 送信中オーバーレイ */
+.overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; z-index: 999; flex-direction: column; gap: 14px; }
+.overlay.show { display: flex; }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay p { font-size: 14px; color: var(--text-sub); }
+
+@media (max-width: 480px) {
+  .nav-row { flex-direction: column-reverse; }
+  .btn { width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 入力画面 -->
+  <div class="screen active" id="screen-start">
+    <div class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <span class="logo-text">360度評価</span>
+    </div>
+    <div class="header">
+      <h1>スタッフ評価フォーム</h1>
+      <p>評価対象者・評価者の情報を選択し、3つの質問にお答えください。回答は匿名で管理されます。</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <span class="field-label">医院</span>
+        <select id="clinic-select" onchange="onClinicChange()">
+          <option value="">選択してください</option>
+          <option value="本院">本院</option>
+          <option value="梅田院">梅田院</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="field-label">評価対象者（被評価者）</span>
+        <select id="evaluatee-select" disabled onchange="onEvaluateeChange()">
+          <option value="">先に医院を選択してください</option>
+        </select>
+        <div class="error-msg" id="err-evaluatee">評価対象者を選択してください</div>
+      </div>
+      <div class="field">
+        <span class="field-label">あなたの名前（評価者）</span>
+        <select id="evaluator-select" disabled>
+          <option value="">評価対象者を選択してください</option>
+        </select>
+        <div class="error-msg" id="err-evaluator">あなたの名前を選択してください</div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <span class="field-label">評価対象者との関係</span>
+        <div class="chips">
+          <span class="chip" data-rel="院長・副院長" onclick="selectRelation(this)">院長・副院長</span>
+          <span class="chip" data-rel="他職種のスタッフ" onclick="selectRelation(this)">他職種のスタッフ</span>
+          <span class="chip" data-rel="同職種の先輩" onclick="selectRelation(this)">同職種の先輩</span>
+          <span class="chip" data-rel="同職種の同僚" onclick="selectRelation(this)">同職種の同僚</span>
+          <span class="chip" data-rel="同職種の後輩" onclick="selectRelation(this)">同職種の後輩</span>
+          <span class="chip" data-rel="プロジェクトメンバー" onclick="toggleProject(this)">プロジェクトメンバー</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-row" style="justify-content:flex-end;">
+      <button class="btn btn-primary" onclick="startEval()">評価を開始する →</button>
+    </div>
+  </div>
+
+  <!-- 質問画面 -->
+  <div class="screen" id="screen-q">
+    <div class="logo" style="margin-bottom:1.25rem;">
+      <div class="logo-mark"><svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <span class="logo-text">360度評価</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span class="progress-label" id="step-label">質問 1 / 3</span>
+        <span class="progress-pct" id="step-pct">33%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:33%"></div></div>
+    </div>
+    <div class="card">
+      <div class="q-text" id="q-text"></div>
+      <div class="radio-group" id="radio-group"></div>
+    </div>
+    <div class="card" id="comment-card" style="display:none;">
+      <div class="comment-title">コメント（任意）</div>
+      <textarea id="comment-input" placeholder="具体的なエピソードや補足があればご記入ください..."></textarea>
+    </div>
+    <div class="nav-row">
+      <button class="btn" id="btn-prev" onclick="prevQ()">戻る</button>
+      <button class="btn btn-primary is-disabled" id="btn-next" onclick="nextQ()">次へ</button>
+    </div>
+  </div>
+
+  <!-- 完了画面 -->
+  <div class="screen" id="screen-done">
+    <div class="done-wrap">
+      <div class="done-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14.5L12 20.5L22 8" stroke="#0F6E56" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2>送信完了しました</h2>
+      <p>ご回答ありがとうございました。<br>評価結果は管理者が確認します。</p>
+      <div style="margin-top:2.5rem; display:flex; flex-direction:column; gap:10px; align-items:center;">
+        <button class="btn btn-primary" onclick="resetAll()">続けて別の人を評価する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <p>送信中...</p>
+</div>
+
+<script>
+// ============================================================
+// ★ GASのウェブアプリURLをここに設定してください
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzihK-AOwL5ToOU5ZY6YvfmtkgX2Jd8obUITAyoO5aRKM9Ovrpb-DhrR_xb2cMksab8Mg/exec';
+
+// ============================================================
+// マスターデータ（スプレッドシートから取得 or 直接記載）
+// スタッフが変わったらここを更新 or GASから自動取得
+// ============================================================
+const MASTER_STAFF = [
+  {"clinic":"本院","job":"歯科医師","name":"樽井先生"},
+  {"clinic":"本院","job":"歯科医師","name":"佐々木先生"},
+  {"clinic":"本院","job":"歯科医師","name":"西川先生"},
+  {"clinic":"本院","job":"歯科医師","name":"大杉先生"},
+  {"clinic":"本院","job":"歯科衛生士","name":"藤定　詩織"},
+  {"clinic":"本院","job":"歯科衛生士","name":"山本　詩織"},
+  {"clinic":"本院","job":"歯科衛生士","name":"御手洗　菜々"},
+  {"clinic":"本院","job":"歯科衛生士","name":"小島　凪紗"},
+  {"clinic":"本院","job":"歯科衛生士","name":"天道　優"},
+  {"clinic":"本院","job":"歯科衛生士","name":"本田　実夢"},
+  {"clinic":"本院","job":"歯科衛生士","name":"三村　かのん"},
+  {"clinic":"本院","job":"歯科衛生士","name":"近藤　梨香子"},
+  {"clinic":"本院","job":"歯科衛生士","name":"山口　さや香"},
+  {"clinic":"本院","job":"歯科衛生士","name":"早川　きよ香"},
+  {"clinic":"本院","job":"歯科衛生士","name":"永井　千晴"},
+  {"clinic":"本院","job":"歯科衛生士","name":"室垣内　美空"},
+  {"clinic":"本院","job":"歯科衛生士","name":"山邉　あき"},
+  {"clinic":"本院","job":"歯科衛生士","name":"門田　花"},
+  {"clinic":"本院","job":"歯科衛生士","name":"森田　芽生"},
+  {"clinic":"本院","job":"歯科衛生士","name":"松村　鈴音"},
+  {"clinic":"本院","job":"事務局","name":"倉田　真梨"},
+  {"clinic":"本院","job":"事務局","name":"中居 巧"},
+  {"clinic":"本院","job":"受付","name":"榎本　千歳"},
+  {"clinic":"本院","job":"受付","name":"北川　莉子"},
+  {"clinic":"本院","job":"受付","name":"生信　栞"},
+  {"clinic":"本院","job":"受付","name":"米澤　友海"},
+  {"clinic":"本院","job":"受付","name":"南野　心春"},
+  {"clinic":"本院","job":"保育士","name":"田村　陽子"},
+  {"clinic":"本院","job":"保育士","name":"西口　芹郁"},
+  {"clinic":"本院","job":"保育士","name":"出口　奈那子"},
+  {"clinic":"本院","job":"技工士","name":"米津　貴与美"},
+  {"clinic":"梅田院","job":"歯科医師","name":"濱田先生"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"見市　真菜"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"田中　茜衣"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"長沼　結芽"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"福躍　寧々"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"渡壁　美月"},
+  {"clinic":"梅田院","job":"歯科衛生士","name":"吉年　弘美"},
+  {"clinic":"梅田院","job":"受付","name":"白國　春香"},
+  {"clinic":"梅田院","job":"受付","name":"寺田　世以良"},
+  {"clinic":"梅田院","job":"受付","name":"丸山　由乃"}
+];
+
+const questions = [
+  { short:'主体的行動・提案力', text:'言い訳や指示待ちをせず、より良くするために自ら考えて行動・提案できているか', key:'q1' },
+  { short:'誠実さ・責任感', text:'ミスや注意に対して、誤魔化したり他人のせいにしたりせず、誠実に向き合っているか', key:'q2' },
+  { short:'感情コントロール・対人対応', text:'忙しい時でも機嫌を表に出さず、誰に対しても相手の立場に立った丁寧な対応ができているか', key:'q3' }
+];
+const choices = [
+  { label:'全くそう思わない', score:1 },
+  { label:'あまりそう思わない', score:2 },
+  { label:'どちらとも言えない', score:3 },
+  { label:'ややそう思う', score:4 },
+  { label:'非常にそう思う', score:5 }
+];
+
+let relationMain = '';
+let relationProject = false;
+let state = { clinic:'', evaluatee:'', evaluateeJob:'', evaluator:'', relation:'', current:0, answers:{}, comments:{} };
+
+function selectRelation(el) {
+  document.querySelectorAll('.chip:not([data-rel="プロジェクトメンバー"])').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  relationMain = el.dataset.rel;
+  updateRelation();
+}
+function toggleProject(el) {
+  relationProject = !relationProject;
+  el.classList.toggle('active', relationProject);
+  updateRelation();
+}
+function updateRelation() {
+  const parts = [];
+  if (relationMain) parts.push(relationMain);
+  if (relationProject) parts.push('プロジェクトメンバー');
+  state.relation = parts.join(' / ');
+}
+function setBtn(id, enabled) {
+  document.getElementById(id).classList.toggle('is-disabled', !enabled);
+}
+function showError(id, show, msg) {
+  const el = document.getElementById(id);
+  el.style.display = show ? 'block' : 'none';
+  if (msg) el.textContent = msg;
+}
+
+function onClinicChange() {
+  const clinic = document.getElementById('clinic-select').value;
+  state.clinic = clinic;
+  const staff = MASTER_STAFF.filter(s => s.clinic === clinic);
+  const et = document.getElementById('evaluatee-select');
+  et.innerHTML = '<option value="">選択してください</option>';
+  staff.forEach(s => { const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; o.dataset.job = s.job; et.appendChild(o); });
+  et.disabled = !clinic;
+  const er = document.getElementById('evaluator-select');
+  er.innerHTML = '<option value="">評価対象者を選択してください</option>';
+  er.disabled = true;
+}
+
+function onEvaluateeChange() {
+  const et = document.getElementById('evaluatee-select');
+  const name = et.value;
+  const er = document.getElementById('evaluator-select');
+  if (!name) { er.innerHTML = '<option value="">評価対象者を選択してください</option>'; er.disabled = true; return; }
+  const staff = MASTER_STAFF.filter(s => s.clinic === state.clinic && s.name !== name);
+  er.innerHTML = '<option value="">選択してください</option>';
+  staff.forEach(s => { const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; o.dataset.job = s.job; er.appendChild(o); });
+  er.disabled = false;
+  showError('err-evaluator', false);
+}
+
+function startEval() {
+  const et = document.getElementById('evaluatee-select');
+  const er = document.getElementById('evaluator-select');
+  let valid = true;
+  if (!et.value) { showError('err-evaluatee', true, '評価対象者を選択してください'); valid = false; } else showError('err-evaluatee', false);
+  if (!er.value) { showError('err-evaluator', true, 'あなたの名前を選択してください'); valid = false; } else showError('err-evaluator', false);
+  if (!valid) return;
+  state.evaluatee = et.value;
+  state.evaluateeJob = et.options[et.selectedIndex].dataset.job || '';
+  state.evaluator = er.value;
+  state.current = 0;
+  renderQ(); show('screen-q');
+}
+
+function renderQ() {
+  const q = questions[state.current];
+  const n = state.current + 1;
+  const pct = Math.round(n / questions.length * 100);
+  document.getElementById('step-label').textContent = '質問 ' + n + ' / ' + questions.length;
+  document.getElementById('step-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('q-text').textContent = q.text;
+  const rg = document.getElementById('radio-group');
+  rg.innerHTML = '';
+  const saved = state.answers[q.key];
+  choices.forEach(c => {
+    const opt = document.createElement('label');
+    opt.className = 'radio-option' + (saved === c.score ? ' selected' : '');
+    opt.innerHTML = '<input type="radio" name="r" value="' + c.score + '"><div class="radio-dot"></div><span class="radio-label">' + c.label + '</span><span class="radio-score">' + c.score + '</span>';
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      state.answers[q.key] = c.score;
+      setBtn('btn-next', true);
+      document.getElementById('comment-card').style.display = '';
+    });
+    rg.appendChild(opt);
+  });
+  document.getElementById('comment-input').value = state.comments[q.key] || '';
+  document.getElementById('comment-card').style.display = saved !== undefined ? '' : 'none';
+  setBtn('btn-next', saved !== undefined);
+  document.getElementById('btn-next').textContent = state.current < questions.length - 1 ? '次へ →' : '送信する';
+  document.getElementById('btn-prev').textContent = state.current === 0 ? '入力画面に戻る' : '← 前の質問';
+}
+
+function nextQ() {
+  state.comments[questions[state.current].key] = document.getElementById('comment-input').value.trim();
+  if (state.current < questions.length - 1) { state.current++; renderQ(); return; }
+  submitReview();
+}
+function prevQ() {
+  if (state.current === 0) { show('screen-start'); }
+  else { state.current--; renderQ(); }
+}
+
+async function submitReview() {
+  document.getElementById('overlay').classList.add('show');
+  const review = {
+    submittedAt: new Date().toLocaleString('ja-JP'),
+    clinic: state.clinic, evaluatee: state.evaluatee, evaluateeJob: state.evaluateeJob,
+    evaluator: state.evaluator, relation: state.relation,
+    answers: {...state.answers}, comments: {...state.comments}
+  };
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(review)
+    });
+  } catch(e) { console.error(e); }
+  document.getElementById('overlay').classList.remove('show');
+  show('screen-done');
+}
+
+function resetAll() {
+  state = { clinic:'', evaluatee:'', evaluateeJob:'', evaluator:'', relation:'', current:0, answers:{}, comments:{} };
+  relationMain = ''; relationProject = false;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('clinic-select').value = '';
+  const et = document.getElementById('evaluatee-select');
+  et.innerHTML = '<option value="">先に医院を選択してください</option>'; et.disabled = true;
+  const er = document.getElementById('evaluator-select');
+  er.innerHTML = '<option value="">評価対象者を選択してください</option>'; er.disabled = true;
+  ['err-evaluatee','err-evaluator'].forEach(id => showError(id, false));
+  show('screen-start');
+}
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
